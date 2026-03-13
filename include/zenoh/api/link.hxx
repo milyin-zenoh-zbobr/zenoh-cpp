@@ -15,7 +15,9 @@
 
 #if defined(Z_FEATURE_UNSTABLE_API)
 
+#include <optional>
 #include <string>
+#include <utility>
 #include <vector>
 
 #include "../zenohc.hxx"
@@ -33,7 +35,7 @@ class Link : public Owned<::z_owned_link_t> {
     /// @name Methods
 
     /// @brief Get the Zenoh ID of the remote node.
-    /// @return ``Id`` of the remote node.
+    /// @return `Id` of the remote node.
     Id get_zid() const { return interop::into_copyable_cpp_obj<Id>(::z_link_zid(interop::as_loaned_c_ptr(*this))); }
 
     /// @brief Get the source address of the link.
@@ -57,22 +59,24 @@ class Link : public Owned<::z_owned_link_t> {
     }
 
     /// @brief Get the group of the link.
-    /// @return group string (may be empty).
-    std::string get_group() const {
+    /// @return group string or `std::nullopt` if not available.
+    std::optional<std::string> get_group() const {
         ::z_owned_string_t str_out;
         ::z_link_group(interop::as_loaned_c_ptr(*this), &str_out);
         std::string result(::z_string_data(::z_loan(str_out)), ::z_string_len(::z_loan(str_out)));
         ::z_drop(::z_move(str_out));
+        if (result.empty()) return std::nullopt;
         return result;
     }
 
     /// @brief Get the authentication identifier of the link.
-    /// @return authentication identifier string (may be empty).
-    std::string get_auth_identifier() const {
+    /// @return authentication identifier string or `std::nullopt` if not available.
+    std::optional<std::string> get_auth_identifier() const {
         ::z_owned_string_t str_out;
         ::z_link_auth_identifier(interop::as_loaned_c_ptr(*this), &str_out);
         std::string result(::z_string_data(::z_loan(str_out)), ::z_string_len(::z_loan(str_out)));
         ::z_drop(::z_move(str_out));
+        if (result.empty()) return std::nullopt;
         return result;
     }
 
@@ -81,7 +85,7 @@ class Link : public Owned<::z_owned_link_t> {
     uint16_t get_mtu() const { return ::z_link_mtu(interop::as_loaned_c_ptr(*this)); }
 
     /// @brief Check if the link is streamed.
-    /// @return ``true`` if the link is streamed, ``false`` otherwise.
+    /// @return `true` if the link is streamed, `false` otherwise.
     bool is_streamed() const { return ::z_link_is_streamed(interop::as_loaned_c_ptr(*this)); }
 
     /// @brief Get the network interfaces associated with this link.
@@ -101,18 +105,23 @@ class Link : public Owned<::z_owned_link_t> {
     }
 
     /// @brief Get the priority range supported by this link.
-    /// @param min_out output parameter for the minimum priority.
-    /// @param max_out output parameter for the maximum priority.
-    /// @return ``true`` if priorities are available, ``false`` otherwise.
-    bool get_priorities(uint8_t& min_out, uint8_t& max_out) const {
-        return ::z_link_priorities(interop::as_loaned_c_ptr(*this), &min_out, &max_out);
+    /// @return pair of (min, max) priority values or `std::nullopt` if not available.
+    std::optional<std::pair<uint8_t, uint8_t>> get_priorities() const {
+        uint8_t min_val, max_val;
+        if (::z_link_priorities(interop::as_loaned_c_ptr(*this), &min_val, &max_val)) {
+            return std::make_pair(min_val, max_val);
+        }
+        return std::nullopt;
     }
 
     /// @brief Get the reliability of this link.
-    /// @param reliability_out output parameter for the reliability value.
-    /// @return ``true`` if reliability information is available, ``false`` otherwise.
-    bool get_reliability(Reliability& reliability_out) const {
-        return ::z_link_reliability(interop::as_loaned_c_ptr(*this), &reliability_out);
+    /// @return reliability value or `std::nullopt` if not available.
+    std::optional<Reliability> get_reliability() const {
+        Reliability reliability;
+        if (::z_link_reliability(interop::as_loaned_c_ptr(*this), &reliability)) {
+            return reliability;
+        }
+        return std::nullopt;
     }
 
     /// @brief Copy constructor.
